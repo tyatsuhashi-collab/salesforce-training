@@ -27,7 +27,8 @@ export default function TrainingPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // 読み込み中状態
+  const [isLoading, setIsLoading] = useState(false);
+  const [status, setStatus] = useState("未挑戦"); // ステータス管理用
 
   const currentQuestion = questions[currentIndex];
 
@@ -39,13 +40,9 @@ export default function TrainingPage() {
     return () => clearInterval(interval);
   }, [isActive]);
 
-  // ★「続きから」を判定するロジック
   const handleStart = async () => {
     if (!userName.trim()) return alert("名前を入力してください");
-    
     setIsLoading(true);
-    
-    // Supabaseからこのユーザーの回答履歴を確認
     const { data, error } = await supabase
       .from("results")
       .select("problem_no")
@@ -61,16 +58,13 @@ export default function TrainingPage() {
 
     if (data && data.length > 0) {
       const lastSolvedNo = data[0].problem_no;
-      
       if (lastSolvedNo >= questions.length) {
         alert(`${userName}さんは、すでに全問完了しています！`);
         setIsLoading(false);
         return;
       }
-      
-      // 最後に解いた問題の「次」からスタート
       setCurrentIndex(lastSolvedNo); 
-      alert(`${userName}さん、お帰りなさい！前回は第${lastSolvedNo}問まで終わっています。第${lastSolvedNo + 1}問から再開します。`);
+      alert(`${userName}さん、お帰りなさい！第${lastSolvedNo + 1}問目から再開します。`);
     }
 
     setIsStarted(true);
@@ -81,6 +75,7 @@ export default function TrainingPage() {
   const handleNext = async () => {
     setIsActive(false);
     
+    // Supabaseへ保存（ステータス情報も含めたい場合はDB側の設定も必要ですが、まずはプログラム側で送ります）
     const { error } = await supabase.from("results").insert({
       user_name: userName,
       problem_no: currentQuestion.no,
@@ -94,10 +89,21 @@ export default function TrainingPage() {
       if (currentIndex < questions.length - 1) {
         setCurrentIndex(currentIndex + 1);
         setSeconds(0);
+        setStatus("未挑戦"); // 次の問題ではステータスを戻す
         setIsActive(true);
       } else {
         alert(`${userName}さん、全問完了です！お疲れ様でした。`);
       }
+    }
+  };
+
+  // ★ 前の問題に戻る処理
+  const handleBack = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      setSeconds(0);
+      setStatus("未挑戦");
+      setIsActive(true);
     }
   };
 
@@ -113,11 +119,7 @@ export default function TrainingPage() {
           disabled={isLoading}
           style={{ width: "100%", padding: "15px", marginBottom: "20px", borderRadius: "8px", border: "2px solid #eee", fontSize: "1.1rem", boxSizing: "border-box" }}
         />
-        <button 
-          onClick={handleStart} 
-          disabled={isLoading}
-          style={{ width: "100%", padding: "15px", background: isLoading ? "#ccc" : "#0070f3", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}
-        >
+        <button onClick={handleStart} disabled={isLoading} style={{ width: "100%", padding: "15px", background: isLoading ? "#ccc" : "#0070f3", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
           {isLoading ? "確認中..." : "テストを開始（または再開）"}
         </button>
       </div>
@@ -125,25 +127,46 @@ export default function TrainingPage() {
   }
 
   return (
-    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "30px", fontFamily: "sans-serif", border: "1px solid #eee", borderRadius: "15px", backgroundColor: "#fff" }}>
+    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "30px", fontFamily: "sans-serif", border: "1px solid #eee", borderRadius: "15px", backgroundColor: "#fff", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #0070f3", marginBottom: "20px", paddingBottom: "10px" }}>
         <div>
-          <h2 style={{ margin: 0 }}>問題 No.{currentQuestion.no}</h2>
+          <h2 style={{ margin: 0, color: "#333" }}>問題 No.{currentQuestion.no}</h2>
           <div style={{ fontSize: "0.9rem", color: "#666", marginTop: "5px" }}>回答者: {userName}</div>
         </div>
-        <div style={{ fontSize: "2.5rem", fontWeight: "bold", fontFamily: "monospace" }}>
+        <div style={{ fontSize: "2.5rem", fontWeight: "bold", color: "#444", fontFamily: "monospace" }}>
           {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
         </div>
       </div>
-      <div style={{ background: "#f8f9fa", padding: "25px", borderRadius: "10px", marginBottom: "30px", minHeight: "150px" }}>
-        <p style={{ fontSize: "1.25rem", lineHeight: "1.6", margin: 0 }}>{currentQuestion.text}</p>
+      
+      <div style={{ background: "#f8f9fa", padding: "25px", borderRadius: "10px", marginBottom: "20px", minHeight: "120px" }}>
+        <p style={{ fontSize: "1.2rem", lineHeight: "1.6", margin: 0, color: "#333" }}>{currentQuestion.text}</p>
       </div>
-      <div style={{ display: "flex", gap: "15px" }}>
+
+      {/* ステータス選択プルダウン */}
+      <div style={{ marginBottom: "30px", padding: "15px", background: "#f0f7ff", borderRadius: "8px", display: "flex", alignItems: "center", gap: "15px" }}>
+        <span style={{ fontWeight: "bold", color: "#0070f3" }}>現在のステータス:</span>
+        <select 
+          value={status} 
+          onChange={(e) => setStatus(e.target.value)}
+          style={{ padding: "10px", borderRadius: "5px", border: "1px solid #0070f3", backgroundColor: "#fff", cursor: "pointer", fontSize: "1rem" }}
+        >
+          <option value="未挑戦">未挑戦</option>
+          <option value="挑戦予定">挑戦予定</option>
+          <option value="OK！">OK！</option>
+          <option value="もう一度！">もう一度！</option>
+          <option value="失敗">失敗</option>
+        </select>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+        <button onClick={handleBack} disabled={currentIndex === 0} style={{ flex: 1, padding: "15px", borderRadius: "8px", border: "1px solid #ddd", background: currentIndex === 0 ? "#eee" : "#fff", cursor: currentIndex === 0 ? "default" : "pointer", color: "#666" }}>
+          ← 前の問題へ
+        </button>
         <button onClick={() => setIsActive(!isActive)} style={{ flex: 1, padding: "15px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer" }}>
           {isActive ? "⏸ 一時停止" : "▶️ 再開"}
         </button>
-        <button onClick={handleNext} style={{ flex: 2, padding: "15px", borderRadius: "8px", background: "#0070f3", color: "white", border: "none", fontWeight: "bold", cursor: "pointer" }}>
-          {currentIndex === questions.length - 1 ? "完了して終了" : "正解・次へ進む"}
+        <button onClick={handleNext} style={{ flex: 2, padding: "15px", borderRadius: "8px", background: "#0070f3", color: "white", border: "none", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
+          {currentIndex === questions.length - 1 ? "完了して提出" : "正解・次へ進む"}
         </button>
       </div>
     </div>
