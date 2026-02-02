@@ -63,23 +63,22 @@ export default function TrainingPage() {
         setSeconds(0);
         setIsActive(true);
       } else {
-        alert(`${userName}さん、全11問、すべて完了しました！お疲れ様でした。`);
+        alert(`${userName}さん、全11問完了しました！お疲れ様でした。`);
       }
     }
   };
 
-  // 1. 名前入力画面
+  // 1. 名前入力画面（まだ開始していない時）
   if (!isStarted) {
     return (
-      <div style={{ maxWidth: "500px", margin: "100px auto", padding: "40px", border: "1px solid #eee", borderRadius: "15px", boxShadow: "0 10px 30px rgba(0,0,0,0.1)", textAlign: "center", backgroundColor: "#fff" }}>
-        <h2 style={{ marginBottom: "20px", color: "#333" }}>Salesforce構築検定 研修スタート</h2>
-        <p style={{ color: "#666", marginBottom: "30px" }}>開始前に氏名（または社員番号）を入力してください。</p>
+      <div style={{ maxWidth: "500px", margin: "100px auto", padding: "40px", border: "1px solid #eee", borderRadius: "15px", boxShadow: "0 10px 30px rgba(0,0,0,0.1)", textAlign: "center", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+        <h2 style={{ marginBottom: "20px", color: "#333" }}>Salesforce構築検定</h2>
         <input 
           type="text" 
           placeholder="氏名を入力してください" 
           value={userName}
           onChange={(e) => setUserName(e.target.value)}
-          style={{ width: "100%", padding: "15px", marginBottom: "20px", borderRadius: "8px", border: "2px solid #eee", fontSize: "1rem", boxSizing: "border-box" }}
+          style={{ width: "100%", padding: "15px", marginBottom: "20px", borderRadius: "8px", border: "2px solid #eee", fontSize: "1.1rem", boxSizing: "border-box" }}
         />
         <button onClick={handleStart} style={{ width: "100%", padding: "15px", background: "#0070f3", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
           テストを開始する
@@ -88,7 +87,7 @@ export default function TrainingPage() {
     );
   }
 
-  // 2. メインのテスト画面
+  // 2. メインのテスト画面（開始した後に表示される）
   return (
     <div style={{ maxWidth: "700px", margin: "40px auto", padding: "30px", fontFamily: "sans-serif", border: "1px solid #eee", borderRadius: "15px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", backgroundColor: "#fff" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #0070f3", marginBottom: "20px", paddingBottom: "10px" }}>
@@ -101,4 +100,19 @@ export default function TrainingPage() {
         </div>
       </div>
       
-      <div style={{ background: "#f8f9fa", padding: "25px", borderRadius: "10px",
+      <div style={{ background: "#f8f9fa", padding: "25px", borderRadius: "10px", marginBottom: "30px", minHeight: "150px" }}>
+        <p style={{ fontSize: "1.25rem", lineHeight: "1.6", color: "#444", margin: 0 }}>{currentQuestion.text}</p>
+        <div style={{ marginTop: "15px", fontSize: "0.9rem", color: "#888" }}>目安時間: {currentQuestion.time}分</div>
+      </div>
+
+      <div style={{ display: "flex", gap: "15px" }}>
+        <button onClick={() => setIsActive(!isActive)} style={{ flex: 1, padding: "15px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer", fontWeight: "bold" }}>
+          {isActive ? "⏸ 一時停止" : "▶️ 再開"}
+        </button>
+        <button onClick={handleNext} style={{ flex: 2, padding: "15px", borderRadius: "8px", background: "#0070f3", color: "white", border: "none", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
+          {currentIndex === questions.length - 1 ? "全ての課題を提出して終了" : "正解・次へ進む"}
+        </button>
+      </div>
+    </div>
+  );
+}
