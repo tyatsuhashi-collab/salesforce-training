@@ -2,21 +2,34 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
+// Supabase接続設定
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 const questions = [
-  /* ...（11問のデータはそのまま）... */
+  { no: 1, text: "商談毎に8桁の固有番号を管理したい。この番号は入力するのではなく自動で発番されるようにしてください。", time: 15 },
+  { no: 2, text: "商談の全額項目には税抜金額を入れるため、税込金額がわかるような項目が欲しい（税率は10%とする）。", time: 20 },
+  { no: 3, text: "商談の完了予定日に日付を入れるときに過去の日付は入れられないようにしたい。", time: 30 },
+  { no: 4, text: "取引先の年間売上に応じてランクABCを分類する項目が欲しい。 (5億円以上:A, 5億円未満:B, 1億円以下:C)", time: 30 },
+  { no: 5, text: "取引先を登録する際、年間売上が重要であるため、入れないと作成できないようにしたい（いじわる問題：ページレイアウトで設定）。", time: 40 },
+  { no: 6, text: "商談という名前が合わない。案件という名前に変更したい（タブと表示ラベルの名称変更）。", time: 15 },
+  { no: 7, text: "現状取引先にはお客様と競合企業の情報が管理されているが、今後管理したい項目が分かれるため、取引先の中で「お客様」と「競合」でタイプを分けたい。", time: 15 },
+  { no: 8, text: "競合情報のカスタムオブジェクト作成。項目：情報（リッチテキスト）、元記事（URL）、取引先での件数集計（主従関係）。", time: 30 },
+  { no: 9, text: "競合情報に関連するファイルがある場合があるため、ページレイアウトにファイル関連リストを追加してください。", time: 15 },
+  { no: 10, text: "営業ではない社員も使うため、社名を冠した「エンミッシュ」アプリを作成し、取引先、取引先責任者、案件、競合情報のタブを表示してください。", time: 20 },
+  { no: 11, text: "失注理由の選択リスト連動設定。1段階目：競合負け/時期尚早・計画変更。2段階目：それぞれの詳細理由を選択できるようにしてください。", time: 20 },
 ];
 
 export default function TrainingPage() {
-  const [userName, setUserName] = useState(""); // 名前を保存する場所
-  const [isStarted, setIsStarted] = useState(false); // スタートしたか
+  const [userName, setUserName] = useState("");
+  const [isStarted, setIsStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
+
+  const currentQuestion = questions[currentIndex];
 
   useEffect(() => {
     let interval: any;
@@ -26,7 +39,6 @@ export default function TrainingPage() {
     return () => clearInterval(interval);
   }, [isActive]);
 
-  // スタートボタンを押した時
   const handleStart = () => {
     if (!userName.trim()) return alert("名前を入力してください");
     setIsStarted(true);
@@ -35,10 +47,10 @@ export default function TrainingPage() {
 
   const handleNext = async () => {
     setIsActive(false);
-    // 保存するときに userName を使うように変更
+    
     const { error } = await supabase.from("results").insert({
-      user_name: userName, 
-      problem_no: questions[currentIndex].no,
+      user_name: userName,
+      problem_no: currentQuestion.no,
       time_spent_seconds: seconds,
     });
 
@@ -51,36 +63,42 @@ export default function TrainingPage() {
         setSeconds(0);
         setIsActive(true);
       } else {
-        alert(`${userName}さん、全問終了です！`);
+        alert(`${userName}さん、全11問、すべて完了しました！お疲れ様でした。`);
       }
     }
   };
 
-  // 最初に名前を入力する画面
+  // 1. 名前入力画面
   if (!isStarted) {
     return (
-      <div style={{ maxWidth: "400px", margin: "100px auto", padding: "30px", border: "1px solid #ddd", borderRadius: "10px", textAlign: "center" }}>
-        <h2>研修スタート</h2>
+      <div style={{ maxWidth: "500px", margin: "100px auto", padding: "40px", border: "1px solid #eee", borderRadius: "15px", boxShadow: "0 10px 30px rgba(0,0,0,0.1)", textAlign: "center", backgroundColor: "#fff" }}>
+        <h2 style={{ marginBottom: "20px", color: "#333" }}>Salesforce構築検定 研修スタート</h2>
+        <p style={{ color: "#666", marginBottom: "30px" }}>開始前に氏名（または社員番号）を入力してください。</p>
         <input 
           type="text" 
           placeholder="氏名を入力してください" 
           value={userName}
           onChange={(e) => setUserName(e.target.value)}
-          style={{ width: "100%", padding: "10px", marginBottom: "20px", borderRadius: "5px", border: "1px solid #ccc" }}
+          style={{ width: "100%", padding: "15px", marginBottom: "20px", borderRadius: "8px", border: "2px solid #eee", fontSize: "1rem", boxSizing: "border-box" }}
         />
-        <button onClick={handleStart} style={{ width: "100%", padding: "10px", background: "#0070f3", color: "white", border: "none", borderRadius: "5px", fontWeight: "bold", cursor: "pointer" }}>
-          テスト開始
+        <button onClick={handleStart} style={{ width: "100%", padding: "15px", background: "#0070f3", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
+          テストを開始する
         </button>
       </div>
     );
   }
 
-  // 11問のテスト画面（以前の return 内容とほぼ同じ）
+  // 2. メインのテスト画面
   return (
-    <div style={{ /* ...以前のスタイル... */ }}>
-      {/* ...省略... */}
-      <div style={{ marginBottom: "10px", color: "#666" }}>回答者: {userName}</div>
-      {/* ...以下、問題表示とボタン... */}
-    </div>
-  );
-}
+    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "30px", fontFamily: "sans-serif", border: "1px solid #eee", borderRadius: "15px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", backgroundColor: "#fff" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #0070f3", marginBottom: "20px", paddingBottom: "10px" }}>
+        <div>
+          <h2 style={{ margin: 0, color: "#333" }}>問題 No.{currentQuestion.no}</h2>
+          <div style={{ fontSize: "0.9rem", color: "#666", marginTop: "5px" }}>回答者: {userName}</div>
+        </div>
+        <div style={{ fontSize: "2.5rem", fontWeight: "bold", color: isActive ? "#2ecc71" : "#e74c3c", fontFamily: "monospace" }}>
+          {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
+        </div>
+      </div>
+      
+      <div style={{ background: "#f8f9fa", padding: "25px", borderRadius: "10px",
