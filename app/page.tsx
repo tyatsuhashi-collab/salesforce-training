@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Supabase接続設定
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -28,6 +27,7 @@ export default function TrainingPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // 読み込み中状態
 
   const currentQuestion = questions[currentIndex];
 
@@ -39,10 +39,43 @@ export default function TrainingPage() {
     return () => clearInterval(interval);
   }, [isActive]);
 
-  const handleStart = () => {
+  // ★「続きから」を判定するロジック
+  const handleStart = async () => {
     if (!userName.trim()) return alert("名前を入力してください");
+    
+    setIsLoading(true);
+    
+    // Supabaseからこのユーザーの回答履歴を確認
+    const { data, error } = await supabase
+      .from("results")
+      .select("problem_no")
+      .eq("user_name", userName)
+      .order("problem_no", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      alert("エラーが発生しました: " + error.message);
+      setIsLoading(false);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const lastSolvedNo = data[0].problem_no;
+      
+      if (lastSolvedNo >= questions.length) {
+        alert(`${userName}さんは、すでに全問完了しています！`);
+        setIsLoading(false);
+        return;
+      }
+      
+      // 最後に解いた問題の「次」からスタート
+      setCurrentIndex(lastSolvedNo); 
+      alert(`${userName}さん、お帰りなさい！前回は第${lastSolvedNo}問まで終わっています。第${lastSolvedNo + 1}問から再開します。`);
+    }
+
     setIsStarted(true);
     setIsActive(true);
+    setIsLoading(false);
   };
 
   const handleNext = async () => {
@@ -63,54 +96,54 @@ export default function TrainingPage() {
         setSeconds(0);
         setIsActive(true);
       } else {
-        alert(`${userName}さん、全11問完了しました！お疲れ様でした。`);
+        alert(`${userName}さん、全問完了です！お疲れ様でした。`);
       }
     }
   };
 
-  // 1. 名前入力画面（まだ開始していない時）
   if (!isStarted) {
     return (
-      <div style={{ maxWidth: "500px", margin: "100px auto", padding: "40px", border: "1px solid #eee", borderRadius: "15px", boxShadow: "0 10px 30px rgba(0,0,0,0.1)", textAlign: "center", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
-        <h2 style={{ marginBottom: "20px", color: "#333" }}>Salesforce構築検定</h2>
+      <div style={{ maxWidth: "500px", margin: "100px auto", padding: "40px", border: "1px solid #eee", borderRadius: "15px", textAlign: "center", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+        <h2 style={{ marginBottom: "20px" }}>Salesforce 構築検定</h2>
         <input 
           type="text" 
           placeholder="氏名を入力してください" 
           value={userName}
           onChange={(e) => setUserName(e.target.value)}
+          disabled={isLoading}
           style={{ width: "100%", padding: "15px", marginBottom: "20px", borderRadius: "8px", border: "2px solid #eee", fontSize: "1.1rem", boxSizing: "border-box" }}
         />
-        <button onClick={handleStart} style={{ width: "100%", padding: "15px", background: "#0070f3", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
-          テストを開始する
+        <button 
+          onClick={handleStart} 
+          disabled={isLoading}
+          style={{ width: "100%", padding: "15px", background: isLoading ? "#ccc" : "#0070f3", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}
+        >
+          {isLoading ? "確認中..." : "テストを開始（または再開）"}
         </button>
       </div>
     );
   }
 
-  // 2. メインのテスト画面（開始した後に表示される）
   return (
-    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "30px", fontFamily: "sans-serif", border: "1px solid #eee", borderRadius: "15px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", backgroundColor: "#fff" }}>
+    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "30px", fontFamily: "sans-serif", border: "1px solid #eee", borderRadius: "15px", backgroundColor: "#fff" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: "2px solid #0070f3", marginBottom: "20px", paddingBottom: "10px" }}>
         <div>
-          <h2 style={{ margin: 0, color: "#333" }}>問題 No.{currentQuestion.no}</h2>
+          <h2 style={{ margin: 0 }}>問題 No.{currentQuestion.no}</h2>
           <div style={{ fontSize: "0.9rem", color: "#666", marginTop: "5px" }}>回答者: {userName}</div>
         </div>
-        <div style={{ fontSize: "2.5rem", fontWeight: "bold", color: isActive ? "#2ecc71" : "#e74c3c", fontFamily: "monospace" }}>
+        <div style={{ fontSize: "2.5rem", fontWeight: "bold", fontFamily: "monospace" }}>
           {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}
         </div>
       </div>
-      
       <div style={{ background: "#f8f9fa", padding: "25px", borderRadius: "10px", marginBottom: "30px", minHeight: "150px" }}>
-        <p style={{ fontSize: "1.25rem", lineHeight: "1.6", color: "#444", margin: 0 }}>{currentQuestion.text}</p>
-        <div style={{ marginTop: "15px", fontSize: "0.9rem", color: "#888" }}>目安時間: {currentQuestion.time}分</div>
+        <p style={{ fontSize: "1.25rem", lineHeight: "1.6", margin: 0 }}>{currentQuestion.text}</p>
       </div>
-
       <div style={{ display: "flex", gap: "15px" }}>
-        <button onClick={() => setIsActive(!isActive)} style={{ flex: 1, padding: "15px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer", fontWeight: "bold" }}>
+        <button onClick={() => setIsActive(!isActive)} style={{ flex: 1, padding: "15px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer" }}>
           {isActive ? "⏸ 一時停止" : "▶️ 再開"}
         </button>
-        <button onClick={handleNext} style={{ flex: 2, padding: "15px", borderRadius: "8px", background: "#0070f3", color: "white", border: "none", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
-          {currentIndex === questions.length - 1 ? "全ての課題を提出して終了" : "正解・次へ進む"}
+        <button onClick={handleNext} style={{ flex: 2, padding: "15px", borderRadius: "8px", background: "#0070f3", color: "white", border: "none", fontWeight: "bold", cursor: "pointer" }}>
+          {currentIndex === questions.length - 1 ? "完了して終了" : "正解・次へ進む"}
         </button>
       </div>
     </div>
